@@ -1,0 +1,74 @@
+name: Docker Image CI
+
+on:
+  workflow_run:
+    workflows: ["Sonarqube"]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Only run this job if the previous workflow was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # Step 1: Check out the code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Get Quality Gate Status
+      - name: Get Quality Gate Status
+        id: check_quality_gate
+        run: |
+          echo "Fetching SonarQube Quality Gate status..."
+          QUALITY_GATE_STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ secrets.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $QUALITY_GATE_STATUS"
+          echo "status=$QUALITY_GATE_STATUS" >> $GITHUB_ENV
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+
+      # Step 3: Fail if Quality Gate Fails
+      - name: Fail if Quality Gate Fails
+        if: env.status != 'OK'
+        run: |
+          echo "Quality Gate failed. Aborting the build and push process."
+          exit 1
+
+      # Step 4: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        if: env.status == 'OK'
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+
+      # Step 5: Define IMAGE_TAG
+      - name: Define IMAGE_TAG
+        if: env.status == 'OK'
+        id: vars
+        run: echo "IMAGE_TAG=$(date +'%d-%m-%Y_%H-%M')" >> $GITHUB_ENV
+
+      # Step 6: Build the Docker image
+      - name: Build Docker Image
+        if: env.status == 'OK'
+        run: |
+          docker build . \
+            --file Dockerfile \
+            --tag raisehub_be:latest
+
+      # Step 7: Tag the Docker image with "patata" and "latest"
+      - name: Tag Docker Image
+        if: env.status == 'OK'
+        run: |
+          docker tag raisehub_be:latest ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:${{ env.IMAGE_TAG }}
+          docker tag raisehub_be:latest ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:latest
+
+      # Step 8: Push the Docker image with both tags
+      - name: Push Docker Images
+        if: env.status == 'OK'
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:latest   

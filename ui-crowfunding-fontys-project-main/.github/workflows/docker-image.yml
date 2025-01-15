@@ -1,0 +1,45 @@
+name: Docker Image CI
+
+on:
+  workflow_run:
+    workflows: ["End-to-End Testing"]
+    types:
+      - completed
+
+jobs:
+  build:
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the repository
+    - uses: actions/checkout@v4
+
+    # Step 2: Log in to Docker Hub
+    - name: Log in to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    # Step 3: Generate a date-based tag
+    - name: Generate date-based tag
+      run: echo "IMAGE_TAG=$(date +'%d-%m-%Y_%H-%M')" >> $GITHUB_ENV
+
+    # Step 4: Build the Docker image
+    - name: Build the Docker image
+      run: |
+        docker build . \
+          --file Dockerfile \
+          --tag raisehub_fe:latest
+
+    # Step 5: Tag the Docker image with the repository name
+    - name: Tag the Docker image
+      run: |
+        docker tag raisehub_fe:latest ${{ secrets.DOCKER_USERNAME }}/raisehub_frontend:${{ env.IMAGE_TAG }}
+        docker tag raisehub_fe:latest ${{ secrets.DOCKER_USERNAME }}/raisehub_frontend:latest
+        
+    # Step 6: Push the Docker images
+    - name: Push the Docker images
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/raisehub_frontend:${{ env.IMAGE_TAG }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/raisehub_frontend:latest  

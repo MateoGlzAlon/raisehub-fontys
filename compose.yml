@@ -1,0 +1,45 @@
+services:
+  raisehub-database:
+    image: mateogonzalezz/raisehub_database
+    volumes:
+      - mysql-data:/var/lib/mysql
+    container_name: raisehub_database
+    ports:
+      - 3307:3306
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  raisehub-backend:
+    image: mateogonzalezz/raisehub_backend
+    container_name: raisehub_backend
+    environment:
+      - JWT_SECRET=<value>
+      - MYSQL_USERNAME=<value>
+      - MYSQL_PASSWORD=<value>
+    ports:
+      - 8080:8080
+    depends_on:
+      raisehub-database:
+        condition: service_healthy
+
+  nameless-frontend:
+    image: mateogonzalezz/raisehub_frontend
+    container_name: raisehub_frontend
+    environment:
+      - AWS_BUCKET_NAME=<value>
+      - AWS_BUCKET_REGION=<value>
+      - AWS_ACCESS_KEY=<value>
+      - AWS_SECRET_ACCESS_KEY=<value>
+    ports:
+      - 3000:3000
+    depends_on:
+      - raisehub-backend
+
+volumes:
+  mysql-data:
+
+
+name: raisehub-application

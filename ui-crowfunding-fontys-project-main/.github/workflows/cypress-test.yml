@@ -1,0 +1,87 @@
+name: End-to-End Testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest    
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # Step 1: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # Step : Connect containers
+      - name: Create container network
+        run: |
+          docker network create docker_network_crowdfund
+
+      # Step 3: Pull and Run Database Docker Image
+      - name: Run MySQL database service
+        run: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/raisehub_database:latest
+          docker run -d --name raisehub_database \
+            -p 3306:3306 \
+            --env MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} \
+            --env MYSQL_DATABASE=crowdfund_db \
+            ${{ secrets.DOCKER_USERNAME }}/raisehub_database:latest
+          docker network connect docker_network_crowdfund raisehub_database
+
+      # Step 3.1: Wait for MySQL to be ready using dockerize
+      - name: Wait for MySQL to be ready
+        run: |
+          sleep 30
+          echo "MySQL is ready"
+
+      # Step 4: Pull and Run Backend Docker Image
+      - name: Run backend service
+        run: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:latest
+          docker run -d --name backend \
+            -p 8080:8080 \
+            --env MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }} \
+            --env MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
+            --env JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            ${{ secrets.DOCKER_USERNAME }}/raisehub_backend:latest            
+          docker network connect docker_network_crowdfund backend
+
+      # Step 4.1: Wait for Backend to be ready using dockerize
+      - name: Wait for Backend Service to be ready
+        run: |
+          sleep 1
+
+      # Step 5: Build and Serve the Frontend
+      - name: Build and Serve Frontend
+        run: |
+          npm install
+          npm run build
+          npm run start & # Start frontend in background        
+
+      # Step 6: Wait for Frontend Service to Start using dockerize
+      - name: Wait for Frontend Service to Start
+        run: |
+          sleep 15
+          echo "Frontend is ready"
+
+      # Step 7: Run Cypress Tests
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          browser: chrome
+          config-file: cypress.config.js
+        env:
+          CYPRESS_baseUrl: http://localhost:3000

@@ -1,0 +1,91 @@
+plugins {
+    id 'org.springframework.boot' version '3.1.0'
+    id 'io.spring.dependency-management' version '1.1.0'
+    id 'java'
+    id "org.sonarqube" version "5.1.0.4882"
+    id 'jacoco'
+
+}
+
+group = 'fontys.sem3'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+
+
+jacoco {
+    toolVersion = "0.8.8" // Specify JaCoCo version
+}
+
+jacocoTestReport {
+    dependsOn test // Ensure JaCoCo runs after tests
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect{
+            fileTree(dir: it, exclude: [
+                "**/persistence/**",
+                "**/config/**",
+                "**/exception/**",
+                "**/CrowdfundingApplication.java"
+            ])
+        }
+        ))
+    }
+
+    reports {
+        xml.required.set(true)  // Enable XML report for SonarQube or CI
+        html.required.set(true) // Enable HTML report for local inspection
+    }
+}
+sonar {
+    properties {
+        property "sonar.projectKey", "MateoGlzAlon_backend-crowfunding-fontys-project"
+        property "sonar.organization", "mateoglzalon"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.exclusions", "**/persistence/**,**/config/**,**/exception/**,**/CrowdfundingApplication.java"
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'com.h2database:h2'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}

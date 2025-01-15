@@ -1,0 +1,56 @@
+name: SonarQube
+
+on:
+  workflow_run:
+    workflows: ["Java CI with Gradle"]  # Trigger this workflow after "Java CI with Gradle" completes
+    types:
+      - completed  # The workflow runs after the previous workflow has finished
+
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest  # Use the latest Ubuntu image for the runner
+
+    # Only run this job if the previous workflow was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Check that the previous workflow was successful
+
+    steps:
+      # Step 1: Checkout the code from the repository
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better relevancy in analysis (full history is needed)
+
+      # Step 2: Set up JDK 17 for the build
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      # Step 3: Cache SonarQube packages to speed up future builds
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Step 4: Cache Gradle packages to speed up future builds
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+
+      # Step 5: Ensure gradlew has execute permissions
+      - name: Give permissions to gradlew
+        run: chmod +x gradlew  # Make the gradlew script executable
+
+      # Step 6: Build and run the SonarQube analysis
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: ./gradlew build sonar --info
