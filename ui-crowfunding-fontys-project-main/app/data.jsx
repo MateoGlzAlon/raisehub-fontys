@@ -16,7 +16,7 @@ export const DATA = {
         "Culture",
     ],
     //TO-DO
-    gitHubRepository: "",
+    gitHubRepository: "https://github.com/MateoGlzAlon/raisehub-fontys",
     creatorWeb: "https://glzalomateo.vercel.app",
     documentation: "https://docs-raisehub.vercel.app",
 }

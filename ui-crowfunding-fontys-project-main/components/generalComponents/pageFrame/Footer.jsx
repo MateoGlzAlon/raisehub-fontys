@@ -10,7 +10,7 @@ export default function Footer() {
                         href={DATA.gitHubRepository}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline hover:cursor-pointer"
+                        className="text-blue-500 hover:underline hover:cursor-pointer w-1/6"
                     >
                         GitHub Repository
                     </a>
@@ -18,7 +18,7 @@ export default function Footer() {
                         href={DATA.creatorWeb}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline hover:cursor-pointer"
+                        className="text-blue-500 hover:underline hover:cursor-pointer w-1/6"
                     >
                         Author web
                     </a>
@@ -26,7 +26,7 @@ export default function Footer() {
                         href={DATA.documentation}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline hover:cursor-pointer"
+                        className="text-blue-500 hover:underline hover:cursor-pointer w-1/6 "
                     >
                         Documentation
                     </a>
